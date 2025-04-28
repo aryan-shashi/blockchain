@@ -1,9 +1,12 @@
+# Save this file as app.py
+import streamlit as st
 import hashlib
 import datetime
 
 class LibraryLedger:
     def __init__(self):
-        self.ledger = []
+        if 'ledger' not in st.session_state:
+            st.session_state['ledger'] = []
 
     def generate_hash(self, book_id, member_id, date_issued):
         hash_input = f"{book_id}{member_id}{date_issued}".encode()
@@ -11,7 +14,7 @@ class LibraryLedger:
 
     def issue_book(self, book_title, book_id, member_name, member_id):
         date_issued = datetime.date.today()
-        due_date = date_issued + datetime.timedelta(days=14)  # 2 weeks loan period
+        due_date = date_issued + datetime.timedelta(days=14)
         transaction_id = self.generate_hash(book_id, member_id, date_issued)
 
         record = {
@@ -26,33 +29,54 @@ class LibraryLedger:
             'Remarks': 'Not yet returned'
         }
 
-        self.ledger.append(record)
-        print(f"Book issued! Transaction ID: {transaction_id}")
+        st.session_state['ledger'].append(record)
+        st.success(f"Book issued! Transaction ID: {transaction_id}")
 
     def return_book(self, transaction_id):
-        for record in self.ledger:
+        for record in st.session_state['ledger']:
             if record['Transaction ID'] == transaction_id:
                 record['Date Returned'] = str(datetime.date.today())
                 record['Remarks'] = 'Returned'
-                print(f"Book returned for Transaction ID: {transaction_id}")
+                st.success(f"Book returned for Transaction ID: {transaction_id}")
                 return
-        print("Transaction ID not found.")
+        st.error("Transaction ID not found.")
 
     def display_ledger(self):
-        for record in self.ledger:
-            print(record)
-            print('-' * 50)
+        if st.session_state['ledger']:
+            st.dataframe(st.session_state['ledger'])
+        else:
+            st.info("No records found in the ledger.")
 
-# Example usage
+# Initialize Ledger
 ledger = LibraryLedger()
 
-# Issue books
-ledger.issue_book("Pride and Prejudice", "BK1001", "Alice Johnson", "M102")
-ledger.issue_book("1984", "BK1002", "Mark Spencer", "M089")
+st.title("📚 Library Book Issuing Ledger with Hashing")
 
-# Display current ledger
-ledger.display_ledger()
+menu = st.sidebar.selectbox("Menu", ["Issue Book", "Return Book", "View Ledger"])
 
-# Simulate a book return (copy Transaction ID from previous output)
-# ledger.return_book("paste_transaction_id_here")
-# ledger.display_ledger()
+if menu == "Issue Book":
+    st.subheader("Issue a Book")
+    book_title = st.text_input("Book Title")
+    book_id = st.text_input("Book ID")
+    member_name = st.text_input("Member Name")
+    member_id = st.text_input("Member ID")
+
+    if st.button("Issue Book"):
+        if book_title and book_id and member_name and member_id:
+            ledger.issue_book(book_title, book_id, member_name, member_id)
+        else:
+            st.warning("Please fill all fields.")
+
+elif menu == "Return Book":
+    st.subheader("Return a Book")
+    transaction_id = st.text_input("Transaction ID")
+
+    if st.button("Return Book"):
+        if transaction_id:
+            ledger.return_book(transaction_id)
+        else:
+            st.warning("Please enter a Transaction ID.")
+
+elif menu == "View Ledger":
+    st.subheader("Ledger Records")
+    ledger.display_ledger()
